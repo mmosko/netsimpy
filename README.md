@@ -2,6 +2,8 @@
 
 netsimpy - The simple network simulator in Python: an easy-to-use discrete event simulator.
 
+THIS CODE IS ALPHA, STILL IN DEVELOPMENT.
+
 ## Files
 The `simulator/` directory is the discrete event simulator.  It's a basic hand-crafted message passing
 discrete event simulator.
