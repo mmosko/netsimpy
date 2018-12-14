@@ -28,16 +28,30 @@ import sys
 
 
 class Simulator:
+    """
+    A discrete event simulator for network modeling.
+
+    Because the Simulator should be a singleton, you can fetch the simulator instance from
+    the static method `Simulator.sim()`.  This avoids having to pass the singleton everywhere.
+    """
     VERBOSE = False
     EXTRA_VERBOSE = False
+    _sim = None
 
     def __init__(self):
+        if Simulator._sim is not None: raise RuntimeError("Can only instantiate one Simulator")
+        Simulator._sim = self
+
         self._time = 0
         self._event_count = 0
         self._stop_after_count = None
         self._stop_after_time = None
         self._priority_queue = []
         self._running = False
+
+    @staticmethod
+    def sim():
+        return Simulator._sim
 
     def time(self):
         """

@@ -29,9 +29,10 @@ import abc
 import random
 
 
-class Delay(object):
+class DelayGenerator(object):
     """
-    Convenience abstract base class for Delay instances.
+    Convenience abstract base class for Delay instances.  This is not a python Generator, just a function
+    that generates something.
 
     """
     __metaclass__ = abc.ABCMeta
@@ -48,7 +49,7 @@ class Delay(object):
         pass
 
 
-class ExponentialDelay(object):
+class ExponentialDelay(DelayGenerator):
     """
     Generates a delay from an exponential distribution with the specified mean (1/lambda):
 
@@ -69,7 +70,7 @@ class ExponentialDelay(object):
         return random.expovariate(1/self._beta) + self._min
 
 
-class UniformDelay(object):
+class UniformDelay(DelayGenerator):
     """
     TODO: Should generate its own seed and keep its own RNG stream
     """
@@ -82,7 +83,4 @@ class UniformDelay(object):
     def next(self):
         return random.uniform(self._lower, self._upper)
 
-
-Delay.register(ExponentialDelay)
-Delay.register(UniformDelay)
 

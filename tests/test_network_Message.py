@@ -98,3 +98,52 @@ class TestMessage(unittest.TestCase):
         self.assertEqual(message.payload(), payload, "Payloads do not match")
         self.assertEqual(message.message_length(), expected_message_length,
                          "Message length is %d, expected %d".format(message.message_length(), expected_message_length))
+
+    def test_push_pop(self):
+        message = Message()
+        h1 = Message(payload='header 1', virtual_length=1)
+        h2 = Message(payload='header 2', virtual_length=2)
+        h3 = Message(payload='header 3', virtual_length=4)
+        h4 = Message(payload='header 4', virtual_length=8)
+
+        headers = [h1, h2, h3, h4]
+        for h in headers:
+            message.push_header(h)
+
+        expected_message_length = 15
+        self.assertEqual(message.message_length(), expected_message_length,
+                         "Message length is %d, expected %d".format(message.message_length(), expected_message_length))
+
+        while headers:
+            expected_header = headers.pop()
+            test_header = message.pop_header()
+            expected_length = expected_message_length - test_header.message_length()
+
+    def test_eq(self):
+        h1 = Message(payload='header 1', virtual_length=1)
+        h2 = Message(payload='header 2', virtual_length=2)
+        h3 = Message(payload='header 3', virtual_length=4)
+        h4 = Message(payload='header 4', virtual_length=8)
+        m1 = Message(payload='blueberry', virtual_length=5, headers=[h1, h2, h3, h4])
+        m2 = Message(payload='blueberry', virtual_length=5, headers=[h1, h2, h3, h4])
+        m3 = Message(payload='blueberry', virtual_length=5, headers=[h1, h2, h3, h4])
+
+        x1 = m1 == m2
+        x2 = m2 == m3
+        x3 = m3 == m1
+        self.assertTrue(x1, "m1 != m2")
+        self.assertTrue(x2, "m2 != m3")
+        self.assertTrue(x3, "m3 != m1")
+
+        # and test negatives
+        m10 = Message(payload='carrot', virtual_length=5, headers=[h1, h2, h3, h4])
+        m11 = Message(payload='blueberry', virtual_length=50, headers=[h1, h2, h3, h4])
+        m12 = Message(payload='blueberry', virtual_length=5, headers=[h1, h2, h3])
+        m13 = Message(payload='blueberry', virtual_length=5, headers=[h4, h2, h3, h1])
+        m14 = Message(payload='blueberry', virtual_length=5, headers=[h1, h2, h4, h4])
+        rejects = [m10, m11, m12, m13, m14]
+
+        for m in rejects:
+            x = m == x1
+            self.assertFalse(x, "Should have rejected {}" % [m,])
+

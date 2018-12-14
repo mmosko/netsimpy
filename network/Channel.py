@@ -23,82 +23,71 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-from netsimpy.Delay import Delay
+from netsimpy.DelayGenerator import DelayGenerator
 from netsimpy.Simulator import Simulator
 from netsimpy.Event import Event
 import random
 import collections
 import abc
 from Layer import Layer
+from netsimpy.network import SDU
 
 
 class Channel(Layer):
+    def __init__(self):
+        """
+        """
+        self._attached_phys = []
+
+    @abc.abstractmethod
+    def _receive_request(self, sdu):
+        pass
+
+    @abc.abstractmethod
+    def _receive_indication(self, sdu):
+        pass
+
+    def attach(self, phy_layer):
+        """
+        Attach the given phy layer to the chanel.
+
+        :param phy_layer:
+        :return: None
+        """
+        self._attached_phys.append(phy_layer)
+
+    def detach(self, phy_layer):
+        """
+        Detach the given phy_layer from the channel
+
+        :param phy_layer:
+        :return: None
+        """
+        self._attached_phys.remove(phy_layer)
+
+    def broadcast(self, request_sdu):
+        # convert the request_sdu to an indication_sdu then send to all phys
+        indication = SDU.Indication(request_sdu.payload())
+        for phy in self._attached_phys:
+            phy.receive(indication)
+
+class FifoChannel(Channel):
     """
-     Represents a nodes output queue.  Messages will be sent in FIFO order with a random delay
-     drawn from a delay function and a given drop rate (drops happen after the delay).
-
-     The output queue will have at most 1 timer running for the head-of-line message.
+    Pass packets to all attached PHYs with a given propagation delay generator and
+    given loss generator.  The packet is received or lost by all stations with the same loss probability.
     """
-    VERBOSE = False
-
-    def __init__(self, sim, delay_generator, loss_rate):
-        if not isinstance(sim, Simulator): raise TypeError("sim must be Simulator")
-        if not isinstance(delay_generator, Delay): raise TypeError("delay_generator must be Delay subclass")
-        if not (0.0 <= loss_rate <= 1.0): raise ValueError("0.0 <= loss_rate <= 1.0")
-
-        self._sim = sim
-        self._delay = delay_generator
-        self._loss_rate = loss_rate
-        self._queue = collections.deque()
-        self._pending_event = None
+    def __init__(self, delay_generator, loss_generator):
+        super(FifoChannel, self).__init__()
 
     def _receive_request(self, sdu):
         """
-        Sends the message to the peer.  Will call peer.receive(message).
-
-        :param peer:
-        :param message:
+        delay the SDU by the channel time, then broadcast to all attached phys (including the sender)
+        :param sdu:
         :return:
         """
-        if peer is None: raise RuntimeError("peer cannot be None")
+        # delay it back to ourself
+        pass
 
-        self._queue.append((peer, message))
-        if len(self._queue) == 1:
-            # enqueued first message, start a timer
-            self._set_timer()
+    def _receive_indication(self, sdu):
+        pass
 
-    def clear(self):
-        """
-        Clear the output queue
-        :return:
-        """
-        self._queue.clear()
-        if self._pending_event is not None:
-            self._pending_event.set_inactive()
-            self._pending_event = None
-
-    def _set_timer(self):
-        delay = self._delay.next()
-        if Channel.VERBOSE:
-            print "{:>12.9f} CHANNEL start timer delay {}".format(self._sim.time(), delay)
-
-        event = Event(delay, self._queue_timer, None)
-        self._pending_event = event
-        self._sim.schedule(event)
-
-    def _queue_timer(self, data):
-        if len(self._queue) == 0: raise RuntimeError("Queue timer fired with zero events in queue")
-        self._pending_event = None
-
-        peer, message = self._queue.pop()
-        self._send_with_loss(peer, message)
-        if len(self._queue) > 0:
-            self._set_timer()
-
-    def _send_with_loss(self, peer, message):
-        r = random.random()
-        if r < (1.0 - self._loss_rate):
-            peer.receive(message)
-        else:
-            if Channel.VERBOSE:
-                print "{:>12.9f} CHANNEL message dropped to peer {} message {}".format(self._sim.time(), peer, message)

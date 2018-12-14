@@ -72,6 +72,41 @@ class Message(object):
         return "{{Message: id {} mlen {} plen {} hdrs {} payload {}}}".format(
             self._id, self._message_length, self._payload_length, self._headers, self._payload)
 
+    def __eq__(self, other):
+        """
+        Equality does not include the message ID, which should be unique between different instances.
+
+        :param other:
+        :return: True if all headers, lengths, and payloads are the same, NotImplement if wrong type
+        """
+        result = NotImplemented
+        if isinstance(other, Message):
+            result = False
+            if self is other:
+                result = True
+            else:
+                # does not compare _id
+                if (self._message_length == other._message_length and
+                        self._payload_length == other._payload_length and
+                        self._headers == other._headers and
+                        self._payload == other._payload):
+                    result = True
+
+        return result
+
+    def __ne__(self, other):
+        """
+        Tests if other is not equal to this instance.
+
+        :param other: A Message
+        :return: NotImplemented or True or False
+        """
+        eq = self.__eq__(other)
+        if eq is not NotImplemented:
+            return not eq
+        else:
+            return NotImplemented
+
     def _set_message_length(self):
         self._message_length = self._payload_length
         for header in self._headers:
@@ -102,7 +137,7 @@ class Message(object):
         self._headers.append(header)
         self._set_message_length()
 
-    def pop_header(self, index):
+    def pop_header(self):
         """
         Returns the last header added to the message.  May be None if no headers available.
         The header is removed from the stack of headers.
