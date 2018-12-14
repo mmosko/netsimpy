@@ -24,26 +24,42 @@
 #
 
 
-class SDU(object):
-    def __init__(self, payload=None):
-        self.payload = payload
+import abc
+from netsimpy.network.Layer import Layer
 
 
-class Request(SDU):
-    def __init__(self, payload=None):
-        super(Request, self).__init__(payload)
+class PhyLayer(Layer):
+    """
+    Abstract model of a PHY layer
+    """
+    __metaclass__ = abc.ABCMeta
+
+    def __init__(self, channel):
+        self._channel = channel
+        self._channel.attach(self)
+
+    @abc.abstractmethod
+    def _receive_request(self, sdu):
+        pass
+
+    @abc.abstractmethod
+    def _receive_indication(self, sdu):
+        pass
 
 
-class Indication(SDU):
-    def __init__(self, payload=None):
-        super(Indication, self).__init__(payload)
+class SimplexSingleRate(PhyLayer):
+    def __init__(self, channel, data_rate):
+        """
 
+        :param channel: The channel to attach to
+        :param data_rate: The data rate (bits per second)
+        """
+        super(SimplexSingleRate, self).__init__(channel)
+        self._data_rate = data_rate
 
-class BusyIndication(Indication):
-    def __init__(self, payload=None):
-        super(BusyIndication, self).__init__(payload)
+    def _receive_request(self, sdu):
+        pass
 
+    def _receive_indication(self, sdu):
+        pass
 
-class IdleIndication(Indication):
-    def __init__(self, payload=None):
-        super(IdleIndication, self).__init__(payload)

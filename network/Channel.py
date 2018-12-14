@@ -23,21 +23,28 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-from netsimpy.DelayGenerator import DelayGenerator
-from netsimpy.Simulator import Simulator
-from netsimpy.Event import Event
 import random
 import collections
 import abc
+from netsimpy.DelayGenerator import DelayGenerator
+from netsimpy.Simulator import Simulator
 from Layer import Layer
 from netsimpy.network import SDU
+from netsimpy.Event import Event
 
+
+_default_layer_delay = 1E-6
 
 class Channel(Layer):
-    def __init__(self):
+    def __init__(self, layer_delay=_default_layer_delay):
         """
+        The channel does not maintain a queue.  The phy/mac must do that.
+
+        :param data_rate: bits per second
+        :param layer_delay: delay (seconds) to pass data up to mac, default 1us
         """
         self._attached_phys = []
+        self._layer_delay = layer_delay
 
     @abc.abstractmethod
     def _receive_request(self, sdu):
@@ -49,7 +56,8 @@ class Channel(Layer):
 
     def attach(self, phy_layer):
         """
-        Attach the given phy layer to the chanel.
+        Attach the given phy layer to the chanel.  After a short delay, the phy_layer should
+        receive a `BusyIndication` or `IdleIndication` SDU
 
         :param phy_layer:
         :return: None
@@ -65,19 +73,33 @@ class Channel(Layer):
         """
         self._attached_phys.remove(phy_layer)
 
-    def broadcast(self, request_sdu):
-        # convert the request_sdu to an indication_sdu then send to all phys
-        indication = SDU.Indication(request_sdu.payload())
+    def _broadcast(self, sdu):
         for phy in self._attached_phys:
-            phy.receive(indication)
+            phy.receive(sdu)
+
+    def _send_to_phy(self, phy, sdu):
+        Simulator.sim().schedule(Event(self._layer_delay, phy.receive, sdu))
+
 
 class FifoChannel(Channel):
     """
     Pass packets to all attached PHYs with a given propagation delay generator and
     given loss generator.  The packet is received or lost by all stations with the same loss probability.
+    The channel will go busy for all phys when any one starts transmitting and only goes idle after
+    the right amount of time.
     """
-    def __init__(self, delay_generator, loss_generator):
-        super(FifoChannel, self).__init__()
+
+    _STATE_IDLE = 1
+    _STATE_TRANSMITTING = 2
+
+    def attach(self, phy_layer):
+        # Overloaded method from Channel
+        super(FifoChannel, self).attach(phy_layer)
+        self._send_to_phy(phy_layer, self._channel_state_sdu())
+
+    def __init__(self, layer_delay=_default_layer_delay, delay_generator=None, loss_generator=None):
+        super(FifoChannel, self).__init__(layer_delay)
+        self._busy = False
 
     def _receive_request(self, sdu):
         """
@@ -85,9 +107,28 @@ class FifoChannel(Channel):
         :param sdu:
         :return:
         """
-        # delay it back to ourself
-        pass
+        if self._busy: raise RuntimeError("Channel busy")
+        self._busy = True
+        self._propagate(sdu)
 
     def _receive_indication(self, sdu):
+        raise RuntimeError("Should never receive an indication at the channel")
+
+    def _propagate(self, message):
+        # delay is the message time plus the random channel delay
+        delay = self._calculate_delay(message)
+
+    def _calculate_delay(self, sdu):
         pass
 
+    def _timer_callback(self, event):
+        pass
+
+    def _channel_state_sdu(self):
+        if self._busy:
+            return SDU.BusyIndication()
+        else:
+            return SDU.IdleIndication()
+
+    def _broadcast_channel_state(self):
+        self._broadcast(self._channel_state_sdu())

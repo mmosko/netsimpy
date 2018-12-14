@@ -25,12 +25,33 @@
 
 
 import abc
+from netsimpy.network.Layer import Layer
 
 
-class MacLayer(object):
+class MacLayer(Layer):
     """
     Abstract model of a MAC layer
     """
-
     __metaclass__ = abc.ABCMeta
 
+    def __init__(self, phy_layer):
+        self._phy = phy_layer
+
+    @abc.abstractmethod
+    def _receive_request(self, sdu):
+        pass
+
+    @abc.abstractmethod
+    def _receive_indication(self, sdu):
+        pass
+
+
+class Aloha(MacLayer):
+    def __init__(self, phy_layer):
+        super(Aloha, self).__init__(phy_layer)
+
+    def _receive_request(self, sdu):
+        pass
+
+    def _receive_indication(self, sdu):
+        pass
